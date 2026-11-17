@@ -3644,6 +3644,13 @@ api = [
     { name = "python-multipart" },
     { name = "uvicorn" },
 ]
+autotrain = [
+    { name = "dvc" },
+    { name = "mlflow" },
+    { name = "onnx" },
+    { name = "onnxruntime" },
+    { name = "ultralytics" },
+]
 detection = [
     { name = "onnx" },
     { name = "onnxruntime" },
@@ -3685,6 +3692,7 @@ training = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dvc", marker = "extra == 'autotrain'", specifier = ">=3.60,<4" },
     { name = "dvc", marker = "extra == 'dev'", specifier = ">=3.60,<4" },
     { name = "dvc", marker = "extra == 'mlops'", specifier = ">=3.60,<4" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115,<1" },
@@ -3692,14 +3700,17 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27,<1" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.9,<4" },
     { name = "matplotlib", marker = "extra == 'mlops'", specifier = ">=3.9,<4" },
+    { name = "mlflow", marker = "extra == 'autotrain'", specifier = ">=3.18,<4" },
     { name = "mlflow", marker = "extra == 'dev'", specifier = ">=3.18,<4" },
     { name = "mlflow", marker = "extra == 'mlops'", specifier = ">=3.18,<4" },
     { name = "mlflow", marker = "extra == 'training'", specifier = ">=3.18,<4" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.15,<3" },
     { name = "numpy", specifier = ">=2.0,<3" },
+    { name = "onnx", marker = "extra == 'autotrain'", specifier = ">=1.17,<2" },
     { name = "onnx", marker = "extra == 'detection'", specifier = ">=1.17,<2" },
     { name = "onnx", marker = "extra == 'dev'", specifier = ">=1.17,<2" },
     { name = "onnx", marker = "extra == 'inference'", specifier = ">=1.17,<2" },
+    { name = "onnxruntime", marker = "extra == 'autotrain'", specifier = ">=1.20,<2" },
     { name = "onnxruntime", marker = "extra == 'detection'", specifier = ">=1.20,<2" },
     { name = "onnxruntime", marker = "extra == 'dev'", specifier = ">=1.20,<2" },
     { name = "onnxruntime", marker = "extra == 'inference'", specifier = ">=1.20,<2" },
@@ -3715,12 +3726,13 @@ requires-dist = [
     { name = "torch", marker = "extra == 'training'", specifier = ">=2.14,<2.16" },
     { name = "torchvision", marker = "extra == 'dev'", specifier = ">=0.29,<0.30" },
     { name = "torchvision", marker = "extra == 'training'", specifier = ">=0.29,<0.30" },
+    { name = "ultralytics", marker = "extra == 'autotrain'", specifier = ">=8.3,<9" },
     { name = "ultralytics", marker = "extra == 'detection'", specifier = ">=8.3,<9" },
     { name = "ultralytics", marker = "extra == 'dev'", specifier = ">=8.3,<9" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.34,<1" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.34,<1" },
 ]
-provides-extras = ["training", "mlops", "inference", "api", "dev", "detection"]
+provides-extras = ["training", "mlops", "inference", "api", "dev", "detection", "autotrain"]
 
 [[package]]
 name = "sympy"

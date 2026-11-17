@@ -67,10 +67,13 @@ models by repeatedly tuning against the held-out test split.
 The detector bundle is independent of the classifier bundle. Its manifest verifies
 the model and checkpoint hashes, class order, shapes, opset, source license notice,
 letterbox preprocessing, raw YOLO output layout, and class-aware NMS settings.
-Preprocessing is RGB, OpenCV bilinear letterbox resize, padding value 114, NCHW
-float32, and division by 255. Export validates the ONNX graph and compares raw
-PyTorch/ONNX outputs plus postprocessed boxes on deterministic synthetic inputs;
-export fails on a parity mismatch.
+Preprocessing is RGB, OpenCV `INTER_LINEAR_EXACT` letterbox resize, padding value
+114, NCHW float32, and division by 255. The manifest names this resize contract
+`opencv_inter_linear_exact`; the .NET detector uses matching fixed-point
+interpolation to avoid platform-dependent differences at confidence thresholds.
+Export validates the ONNX graph and compares raw PyTorch/ONNX outputs plus
+postprocessed boxes on deterministic synthetic inputs; export fails on a parity
+mismatch.
 
 Run image or video inference with ONNX Runtime:
 

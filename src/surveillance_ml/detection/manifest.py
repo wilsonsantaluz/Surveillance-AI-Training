@@ -188,7 +188,7 @@ def load_detection_manifest(path: Path) -> DetectionManifest:
         "color_space": "RGB",
         "layout": "NCHW",
         "resize_mode": "letterbox",
-        "resample": "opencv_inter_linear",
+        "resample": "opencv_inter_linear_exact",
         "padding_value": 114,
         "normalization": "divide_by_255",
         "width": manifest.input_shape[3],
