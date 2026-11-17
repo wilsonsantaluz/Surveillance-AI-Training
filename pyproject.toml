@@ -51,7 +51,13 @@ dev = [
     "ruff>=0.11,<1",
     "torch>=2.14,<2.16",
     "torchvision>=0.29,<0.30",
+    "ultralytics>=8.3,<9",
     "uvicorn>=0.34,<1",
+]
+detection = [
+    "onnx>=1.17,<2",
+    "onnxruntime>=1.20,<2",
+    "ultralytics>=8.3,<9",
 ]
 
 [project.scripts]

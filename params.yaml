@@ -16,3 +16,17 @@ training:
 
 model:
   strategy: head
+
+detection:
+  dataset:
+    root: data/detection-demo
+    source_count: 12
+    image_size: 128
+    seed: 42
+    imbalance_threshold: 1.5
+  training:
+    output_dir: artifacts/detection-demo/train
+  evaluation:
+    output: artifacts/dvc/detection/evaluation.json
+  export:
+    output_dir: artifacts/dvc/detection/onnx
