@@ -1,0 +1,32 @@
+dataset:
+  root: data/demo
+  version: synthetic-v1
+  image_size: 64
+  train_fraction: 0.7
+  validation_fraction: 0.15
+  test_fraction: 0.15
+  imbalance_ratio: 1.5
+
+training:
+  output_dir: artifacts/classifier
+  seed: 42
+  batch_size: 12
+  epochs: 5
+  learning_rate: 0.001
+  optimizer: adamw
+  weight_decay: 0.0001
+  scheduler_factor: 0.5
+  scheduler_patience: 1
+  early_stopping_patience: 3
+  num_workers: 0
+  cpu_threads: 2
+  mixed_precision: true
+
+model:
+  architecture: resnet18
+  pretrained: true
+  strategy: head
+
+tracking:
+  uri: sqlite:///mlflow.db
+  experiment_name: surveillance-classification
