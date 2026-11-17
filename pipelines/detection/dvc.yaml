@@ -1,0 +1,73 @@
+# Optional isolated pipeline; the default dvc.yaml remains classification-only.
+vars:
+  - ../../params.yaml
+stages:
+  generate_detection_dataset:
+    wdir: ../..
+    cmd: uv run python scripts/generate_detection_dataset.py --output-dir ${detection.dataset.root} --source-count ${detection.dataset.source_count} --image-size ${detection.dataset.image_size} --seed ${detection.dataset.seed}
+    deps:
+      - scripts/generate_detection_dataset.py
+      - src/surveillance_ml/detection/dataset.py
+      - src/surveillance_ml/detection/synthetic.py
+      - pyproject.toml
+      - uv.lock
+    params:
+      - detection.dataset.root
+      - detection.dataset.source_count
+      - detection.dataset.image_size
+      - detection.dataset.seed
+    outs:
+      - ${detection.dataset.root}
+
+  validate_detection_dataset:
+    wdir: ../..
+    cmd: uv run python scripts/validate_detection_dataset.py --dataset-root ${detection.dataset.root} --imbalance-threshold ${detection.dataset.imbalance_threshold} --output artifacts/dvc/detection/validation.json
+    deps:
+      - ${detection.dataset.root}
+      - scripts/validate_detection_dataset.py
+      - src/surveillance_ml/detection/dataset.py
+      - pyproject.toml
+      - uv.lock
+    params:
+      - detection.dataset.imbalance_threshold
+    outs:
+      - artifacts/dvc/detection/validation.json
+
+  train_detector:
+    wdir: ../..
+    cmd: uv run python scripts/train_detector.py --config configs/detection_demo.yaml --output-dir ${detection.training.output_dir} --run-name dvc-detection-demo
+    deps:
+      - ${detection.dataset.root}
+      - configs/detection_demo.yaml
+      - scripts/train_detector.py
+      - src/surveillance_ml/detection
+      - pyproject.toml
+      - uv.lock
+    outs:
+      - ${detection.training.output_dir}
+
+  evaluate_detector:
+    wdir: ../..
+    cmd: uv run python scripts/evaluate_detector.py --config configs/detection_demo.yaml --checkpoint ${detection.training.output_dir}/weights/best.pt --split test --output ${detection.evaluation.output}
+    deps:
+      - ${detection.dataset.root}
+      - ${detection.training.output_dir}/weights/best.pt
+      - scripts/evaluate_detector.py
+      - src/surveillance_ml/detection
+      - pyproject.toml
+      - uv.lock
+    metrics:
+      - ${detection.evaluation.output}
+
+  export_detector:
+    wdir: ../..
+    cmd: uv run python scripts/export_detector.py --config configs/detection_demo.yaml --checkpoint ${detection.training.output_dir}/weights/best.pt --output-dir ${detection.export.output_dir}
+    deps:
+      - ${detection.dataset.root}
+      - ${detection.training.output_dir}/weights/best.pt
+      - scripts/export_detector.py
+      - src/surveillance_ml/detection
+      - pyproject.toml
+      - uv.lock
+    outs:
+      - ${detection.export.output_dir}

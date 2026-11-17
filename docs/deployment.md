@@ -1,8 +1,10 @@
 # ONNX export and inference
 
-Phase 3 adds a hash-verified ONNX bundle, a CPU ONNX Runtime client, an authenticated
-FastAPI endpoint, a measured latency report, and a standalone .NET example. It does
-not add object detection, tracking, identity recognition, or deployment-ready accuracy.
+Phase 3 adds a hash-verified ONNX bundle for the ResNet scene classifier, a CPU ONNX
+Runtime client, an authenticated FastAPI endpoint, a measured latency report, and a
+standalone .NET example. Detection uses a separate bundle and runtime; see
+[Object detection](detection.md). Neither path adds identity recognition or
+deployment-ready accuracy.
 
 ## Export
 

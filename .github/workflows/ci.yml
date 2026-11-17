@@ -29,3 +29,6 @@ jobs:
           dotnet-version: "9.0.x"
       - run: dotnet restore dotnet/Inference/Inference.csproj --locked-mode
       - run: dotnet build dotnet/Inference/Inference.csproj --configuration Release --no-restore
+      - run: dotnet restore dotnet/Detector.Tests/Detector.Tests.csproj --locked-mode
+      - run: dotnet build dotnet/Detector.Tests/Detector.Tests.csproj --configuration Release --no-restore
+      - run: dotnet test dotnet/Detector.Tests/Detector.Tests.csproj --configuration Release --no-build --no-restore

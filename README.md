@@ -5,18 +5,18 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-ResNet18-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-Experiment%20Tracking-0194E2)](https://mlflow.org/)
-[![Status](https://img.shields.io/badge/Status-Phases%201--3%20Implemented-16a085)](#implementation-status)
+[![Status](https://img.shields.io/badge/Status-Phases%201--4%20Implemented-16a085)](#implementation-status)
 [![License](https://img.shields.io/github/license/wilsonsantaluz/Surveillance-AI-Training)](LICENSE)
 
-> **Current scope:** Phases 1–3 provide an image-classification and MLOps foundation with ONNX export/runtime and a local inference API. This is **not** an object detector or production surveillance system. The generated demo images are synthetic and cannot establish real-world accuracy.
+> **Current scope:** Phases 1–4 provide image classification, MLOps, ONNX serving, and a separate YOLO object-detection pipeline. Detection demos use synthetic geometric fixtures, not weapon imagery; they do not establish real-world performance or production readiness.
 
 ## Why this project?
 
-This independent, open-source lab explores the engineering lifecycle of a computer-vision model: validated data, source-aware splits, transfer learning, measured evaluation, reproducible configuration, local experiment tracking, and CPU inference. Future phases are planned to explore object detection and optional LLM-assisted experiment reviews.
+This independent, open-source lab explores the engineering lifecycle of computer-vision models: validated data, source-aware splits, transfer learning, object detection, measured evaluation, reproducible configuration, local experiment tracking, and CPU inference. Optional LLM-assisted experiment reviews remain planned.
 
 ## How it works
 
-The diagram below reflects the implemented training, MLOps, and model-serving path. Later roadmap phases are not included.
+The diagram distinguishes the implemented classifier path from the independent object-detection path. Later roadmap phases are not included.
 
 ```mermaid
 flowchart TD
@@ -38,6 +38,12 @@ flowchart TD
     O --> P["Authenticated FastAPI<br/>local service"]
     O --> Q[".NET ONNX Runtime<br/>example client"]
     O --> R["Measured latency report"]
+    S["YOLO dataset<br/>or synthetic geometry"] --> T["Validate YOLO labels<br/>and source splits"]
+    T --> U["YOLO11 training<br/>and MLflow"]
+    U --> V["Held-out mAP<br/>and error report"]
+    U --> W["Detection ONNX<br/>manifest + parity"]
+    W --> X["Python image/video<br/>ONNX Runtime"]
+    W --> Y[".NET detector<br/>temporal alerts"]
 
     classDef input fill:#eaf4ff,stroke:#568fca,color:#173b63
     classDef train fill:#e7f8f3,stroke:#28a48b,color:#125447
@@ -70,9 +76,11 @@ flowchart TD
 | Hash-verified ONNX Runtime CPU inference and benchmark report | ✅ |
 | Authenticated, upload-limited local FastAPI service | ✅ |
 | Standalone .NET ONNX Runtime interoperability example | ✅ |
+| Isolated YOLO11 firearm/knife detection pipeline and DVC workflow | ✅ |
+| Detection metrics, ONNX contract, Python video inference, and .NET alert DTO | ✅ |
 | Docker image and Compose deployment configuration | ✅ |
 | Pytest, Ruff, Mypy and CI configuration | ✅ |
-| YOLO, LangGraph, Langfuse | **Planned — not implemented** |
+| LangGraph and Langfuse | **Planned — not implemented** |
 
 ## Quick start
 
@@ -96,6 +104,10 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port
 ```
 
 Open **http://127.0.0.1:5000**. DVC outputs, Optuna studies, MLflow databases, and model artifacts are local and intentionally not tracked in Git. See [DVC](docs/dvc.md), [optimization](docs/hyperparameter_optimization.md), and [comparison reports](docs/experiment_comparison.md) for reproduction and outputs.
+
+### Object detection (Phase 4)
+
+The separate YOLO pipeline has a synthetic CPU demonstration and a user-data configuration. Its DVC workflow is opt-in and does not change the default classifier workflow. Follow [Object detection](docs/detection.md) for commands, data requirements, licensing, measured demo results, and limitations.
 
 ### Transfer learning with pretrained weights
 
@@ -162,10 +174,11 @@ The included CI workflow validates code quality and focused tests without requir
 ```text
 configs/              Training and optimization configuration
 docs/                 Training, MLOps, deployment, and model-card documentation
+pipelines/detection/  Opt-in YOLO detection DVC pipeline
 scripts/              Dataset, training, evaluation, and reporting entry points
 src/surveillance_ml/  Dataset, training, optimization, deployment, and inference modules
 tests/                Automated tests
-dotnet/               Standalone .NET ONNX Runtime example
+dotnet/               .NET classifier and object-detection ONNX clients
 .dvc/                 Local DVC configuration and cache ignore rules
 .github/workflows/    CI configuration
 pyproject.toml         Package and tooling configuration
@@ -182,18 +195,20 @@ The table distinguishes implemented phases from future work:
 | **1 — Training foundation** | **Implemented:** ResNet18, dataset validation, splitting, evaluation, MLflow |
 | **2 — MLOps** | **Implemented:** DVC pipeline, Optuna tuning, compatibility-aware experiment comparison |
 | **3 — Model serving** | **Implemented:** ONNX export and parity checks, ONNX Runtime, FastAPI, benchmarks, Docker, .NET example |
-| **4 — Object detection** | YOLO fine-tuning, bounding boxes, mAP evaluation |
+| **4 — Object detection** | **Implemented:** YOLO11 fine-tuning, validated YOLO data, mAP evaluation, separate ONNX inference, video benchmarking, and .NET temporal confirmation |
 | **5 — AI workflows** | Optional LangGraph experiment-review graph and Langfuse tracing |
-| **6 — Publication** | Extended benchmarks and deployment documentation |
+| **6 — Publication** | Broader validation and deployment documentation |
 
 The ONNX bundle supports independent inference clients, including C#/.NET applications. The existing [SurveillanceAI](https://github.com/wilsonsantaluz/SurveillanceAI) project is separate and is not modified or bundled here.
 
 ## Responsible use and limitations
 
 - Synthetic colored silhouettes are **pipeline fixtures**, not representative surveillance imagery.
+- The firearm and knife labels in the detection demo refer to colored geometric shapes, not depictions of weapons; the measured demo achieved zero precision, recall, and mAP on its tiny held-out synthetic split.
 - Small synthetic test splits do not provide trustworthy estimates of real-world performance.
-- Scene classification does **not** detect bounding boxes, track people, identify individuals, or understand intent.
+- Neither model identifies individuals or understands intent. The detection pipeline has not been validated on real surveillance or weapon imagery.
 - Models require appropriately licensed data, independent validation, and assessment of privacy, bias, and failure modes before any deployment.
+- Video and camera inputs may contain sensitive personal data. Use only with appropriate authorization, safeguards, retention limits, and applicable privacy-law review.
 - This repository is an independent educational/engineering project and does not contain employer data or proprietary components.
 
 ## License

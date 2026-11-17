@@ -1,0 +1,184 @@
+schema: '2.0'
+stages:
+  generate_detection_dataset:
+    cmd: uv run python scripts/generate_detection_dataset.py --output-dir 
+      data/detection-demo --source-count 12 --image-size 128 --seed 42
+    deps:
+    - path: pyproject.toml
+      hash: md5
+      md5: 2de4d90348a5068b5322079e60aa92e5
+      size: 2062
+    - path: scripts/generate_detection_dataset.py
+      hash: md5
+      md5: fee325bfc4cb3e14a5321354cace4967
+      size: 870
+    - path: src/surveillance_ml/detection/dataset.py
+      hash: md5
+      md5: 6bb19f236e53e445e0a7500d15d96bb6
+      size: 15956
+    - path: src/surveillance_ml/detection/synthetic.py
+      hash: md5
+      md5: 9f7ee8151c18f881721557436448a5bf
+      size: 4596
+    - path: uv.lock
+      hash: md5
+      md5: 8b583c2df9b5937f029070ef9a4ddf5a
+      size: 674444
+    params:
+      params.yaml:
+        detection.dataset.image_size: 128
+        detection.dataset.root: data/detection-demo
+        detection.dataset.seed: 42
+        detection.dataset.source_count: 12
+    outs:
+    - path: data/detection-demo
+      hash: md5
+      md5: bebb36c4586ddbb7e585cefdcc817b28.dir
+      size: 17648
+      nfiles: 73
+  validate_detection_dataset:
+    cmd: uv run python scripts/validate_detection_dataset.py --dataset-root 
+      data/detection-demo --imbalance-threshold 1.5 --output 
+      artifacts/dvc/detection/validation.json
+    deps:
+    - path: data/detection-demo
+      hash: md5
+      md5: bebb36c4586ddbb7e585cefdcc817b28.dir
+      size: 17648
+      nfiles: 73
+    - path: pyproject.toml
+      hash: md5
+      md5: 2de4d90348a5068b5322079e60aa92e5
+      size: 2062
+    - path: scripts/validate_detection_dataset.py
+      hash: md5
+      md5: 7ad69e4218d60f7bedd4c567f63bc0ac
+      size: 763
+    - path: src/surveillance_ml/detection/dataset.py
+      hash: md5
+      md5: 6bb19f236e53e445e0a7500d15d96bb6
+      size: 15956
+    - path: uv.lock
+      hash: md5
+      md5: 8b583c2df9b5937f029070ef9a4ddf5a
+      size: 674444
+    params:
+      params.yaml:
+        detection.dataset.imbalance_threshold: 1.5
+    outs:
+    - path: artifacts/dvc/detection/validation.json
+      hash: md5
+      md5: bd66cc7b556185984ee7bc5855890f4d
+      size: 930
+  train_detector:
+    cmd: uv run python scripts/train_detector.py --config 
+      configs/detection_demo.yaml --output-dir artifacts/detection-demo/train 
+      --run-name dvc-detection-demo
+    deps:
+    - path: configs/detection_demo.yaml
+      hash: md5
+      md5: 7498d8aa118d281ca8e1710aebfdd0f6
+      size: 693
+    - path: data/detection-demo
+      hash: md5
+      md5: bebb36c4586ddbb7e585cefdcc817b28.dir
+      size: 17648
+      nfiles: 73
+    - path: pyproject.toml
+      hash: md5
+      md5: 2de4d90348a5068b5322079e60aa92e5
+      size: 2062
+    - path: scripts/train_detector.py
+      hash: md5
+      md5: a2566aa41613fd2fbb8ff5287fef4191
+      size: 1294
+    - path: src/surveillance_ml/detection
+      hash: md5
+      md5: 9bc5095ca9d1a00bc19e1df9aaa1c5e8.dir
+      size: 99467
+      nfiles: 10
+    - path: uv.lock
+      hash: md5
+      md5: 8b583c2df9b5937f029070ef9a4ddf5a
+      size: 674444
+    outs:
+    - path: artifacts/detection-demo/train
+      hash: md5
+      md5: 5cb611143da93f04ce1840a4f23fecf5.dir
+      size: 10832400
+      nfiles: 5
+  evaluate_detector:
+    cmd: uv run python scripts/evaluate_detector.py --config 
+      configs/detection_demo.yaml --checkpoint 
+      artifacts/detection-demo/train/weights/best.pt --split test --output 
+      artifacts/dvc/detection/evaluation.json
+    deps:
+    - path: artifacts/detection-demo/train/weights/best.pt
+      hash: md5
+      md5: 990f15685f001bedcc63283ddb57a50e
+      size: 5414234
+    - path: data/detection-demo
+      hash: md5
+      md5: bebb36c4586ddbb7e585cefdcc817b28.dir
+      size: 17648
+      nfiles: 73
+    - path: pyproject.toml
+      hash: md5
+      md5: 2de4d90348a5068b5322079e60aa92e5
+      size: 2062
+    - path: scripts/evaluate_detector.py
+      hash: md5
+      md5: 580a95ec771f9181e3710d0a46ccdc10
+      size: 1046
+    - path: src/surveillance_ml/detection
+      hash: md5
+      md5: 9bc5095ca9d1a00bc19e1df9aaa1c5e8.dir
+      size: 99467
+      nfiles: 10
+    - path: uv.lock
+      hash: md5
+      md5: 8b583c2df9b5937f029070ef9a4ddf5a
+      size: 674444
+    outs:
+    - path: artifacts/dvc/detection/evaluation.json
+      hash: md5
+      md5: 3c3d0bb42d1be0288a0c55a3ce30f2c7
+      size: 1978
+  export_detector:
+    cmd: uv run python scripts/export_detector.py --config 
+      configs/detection_demo.yaml --checkpoint 
+      artifacts/detection-demo/train/weights/best.pt --output-dir 
+      artifacts/dvc/detection/onnx
+    deps:
+    - path: artifacts/detection-demo/train/weights/best.pt
+      hash: md5
+      md5: 990f15685f001bedcc63283ddb57a50e
+      size: 5414234
+    - path: data/detection-demo
+      hash: md5
+      md5: bebb36c4586ddbb7e585cefdcc817b28.dir
+      size: 17648
+      nfiles: 73
+    - path: pyproject.toml
+      hash: md5
+      md5: 2de4d90348a5068b5322079e60aa92e5
+      size: 2062
+    - path: scripts/export_detector.py
+      hash: md5
+      md5: 74e1d4a3ea44d46a1b8ae61a4a692e84
+      size: 3298
+    - path: src/surveillance_ml/detection
+      hash: md5
+      md5: 9bc5095ca9d1a00bc19e1df9aaa1c5e8.dir
+      size: 99467
+      nfiles: 10
+    - path: uv.lock
+      hash: md5
+      md5: 8b583c2df9b5937f029070ef9a4ddf5a
+      size: 674444
+    outs:
+    - path: artifacts/dvc/detection/onnx
+      hash: md5
+      md5: 3542582082555e88ddbc3bab80c0025b.dir
+      size: 10406837
+      nfiles: 3
