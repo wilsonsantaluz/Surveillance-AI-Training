@@ -6,6 +6,7 @@ import logging
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -60,10 +61,11 @@ class _SingleRunDetectionTrainer(DetectionTrainer):
 class DetectionTrainingOutcome:
     checkpoint_path: Path
     results_dir: Path
-    mlflow_run_id: str
+    mlflow_run_id: str | None
     epochs_completed: int
     training_seconds: float
     dataset_fingerprint: str
+    stop_reason: str | None = None
 
 
 def _resolve_device(requested: str) -> tuple[str, str]:
@@ -155,10 +157,15 @@ def train_detector(
     *,
     output_dir: Path | None = None,
     run_name: str | None = None,
+    resume_from: Path | None = None,
+    stop_check: Callable[[], str | None] | None = None,
+    stop_after_epochs: int | None = None,
 ) -> DetectionTrainingOutcome:
     """Train the configured detector, select its validation-best checkpoint, and log artifacts."""
     if output_dir is not None:
         config = replace(config, training=replace(config.training, output_dir=output_dir))
+    if stop_after_epochs is not None and not 1 <= stop_after_epochs <= config.training.epochs:
+        raise ValueError("stop_after_epochs must be between one and the configured epoch target")
     report = validate_yolo_dataset(config.dataset.root)
     seed_everything(config.training.seed)
     torch.set_num_threads(config.training.cpu_threads)
@@ -218,7 +225,25 @@ def train_detector(
             if config.model.pretrained
             else f"{config.model.architecture}.yaml"
         )
-        model = YOLO(model_reference)
+        if resume_from is not None:
+            if not resume_from.is_file():
+                raise FileNotFoundError(f"Resume checkpoint does not exist: {resume_from}")
+            model = YOLO(str(resume_from))
+        else:
+            model = YOLO(model_reference)
+        stop_reasons: list[str] = []
+        if stop_check is not None or stop_after_epochs is not None:
+
+            def stop_after_epoch(trainer: DetectionTrainer) -> None:
+                reason = stop_check() if stop_check is not None else None
+                if reason is not None:
+                    stop_reasons.append(reason)
+                    trainer.stop = True
+                elif stop_after_epochs is not None and trainer.epoch + 1 >= stop_after_epochs:
+                    stop_reasons.append("stage_boundary")
+                    trainer.stop = True
+
+            model.add_callback("on_train_epoch_end", stop_after_epoch)
         with tempfile.NamedTemporaryFile(
             mode="w",
             suffix=".yaml",
@@ -258,6 +283,7 @@ def train_detector(
                 lr0=config.training.learning_rate,
                 patience=config.training.patience,
                 pretrained=config.model.pretrained,
+                resume=resume_from is not None,
                 amp=config.training.mixed_precision and training_device != "cpu",
                 cache=False,
                 plots=False,
@@ -326,6 +352,13 @@ def train_detector(
             epochs_completed=epoch_count,
             training_seconds=training_seconds,
             dataset_fingerprint=report.dataset_fingerprint,
+            stop_reason=(
+                stop_reasons[0]
+                if stop_reasons
+                else "early_stopping"
+                if epoch_count < config.training.epochs
+                else None
+            ),
         )
 
 
@@ -336,6 +369,7 @@ def evaluate_and_log_detector(
     split: str,
     output_path: Path,
     parent_run_id: str | None = None,
+    collect_samples: bool = False,
 ) -> dict[str, Any]:
     """Evaluate one split and persist metrics in a dedicated MLflow evaluation run."""
     dataset_report = validate_yolo_dataset(config.dataset.root)
@@ -350,6 +384,7 @@ def evaluate_and_log_detector(
         nms_iou_threshold=config.evaluation.nms_iou_threshold,
         max_detections=config.evaluation.max_detections,
         device=device_name,
+        collect_samples=collect_samples,
     )
     write_metrics_report(metrics, output_path)
     tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", config.tracking.uri)

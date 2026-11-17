@@ -79,7 +79,7 @@ def _letterbox_rgb(
     resized = cv2.resize(
         image,
         (resized_width, resized_height),
-        interpolation=cv2.INTER_LINEAR,
+        interpolation=cv2.INTER_LINEAR_EXACT,
     )
     padded = cv2.copyMakeBorder(
         resized,
@@ -269,6 +269,7 @@ def _reference_predictions(
             verbose=False,
             save=False,
             stream=False,
+            rect=False,
         ),
     )
     boxes = results[0].boxes
@@ -412,7 +413,7 @@ def export_detector(
         "color_space": "RGB",
         "layout": "NCHW",
         "resize_mode": "letterbox",
-        "resample": "opencv_inter_linear",
+        "resample": "opencv_inter_linear_exact",
         "padding_value": 114,
         "normalization": "divide_by_255",
         "width": image_size,

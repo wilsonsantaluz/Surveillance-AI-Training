@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
+
+[assembly: InternalsVisibleTo("Detector.Tests")]
 
 namespace SurveillanceDetection;
 
@@ -128,7 +131,7 @@ public sealed class Detector : IDisposable
         if (preprocessing.GetProperty("color_space").GetString() != "RGB"
             || preprocessing.GetProperty("layout").GetString() != "NCHW"
             || preprocessing.GetProperty("resize_mode").GetString() != "letterbox"
-            || preprocessing.GetProperty("resample").GetString() != "opencv_inter_linear"
+            || preprocessing.GetProperty("resample").GetString() != "opencv_inter_linear_exact"
             || preprocessing.GetProperty("normalization").GetString() != "divide_by_255"
             || preprocessing.GetProperty("padding_value").GetInt32() != 114
             || preprocessing.GetProperty("width").GetInt32() != _width
@@ -257,32 +260,139 @@ public sealed class Detector : IDisposable
             throw new InvalidDataException("Letterbox dimensions do not match the model input.");
         }
 
-        using var target = new SKBitmap(
-            new SKImageInfo(_width, _height, SKColorType.Rgba8888, SKAlphaType.Opaque));
-        using (var canvas = new SKCanvas(target))
-        {
-            canvas.Clear(new SKColor(114, 114, 114, 255));
-            using var sourceImage = SKImage.FromBitmap(source);
-            canvas.DrawImage(
-                sourceImage,
-                new SKRect(0, 0, source.Width, source.Height),
-                new SKRect(padLeft, padTop, padLeft + resizedWidth, padTop + resizedHeight),
-                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
-        }
-
+        var resized = ResizeRgbInterLinearExact(source, resizedWidth, resizedHeight);
         var tensor = new float[3 * _height * _width];
         for (var y = 0; y < _height; y++)
         {
             for (var x = 0; x < _width; x++)
             {
-                var pixel = target.GetPixel(x, y);
                 var index = y * _width + x;
-                tensor[index] = pixel.Red / 255f;
-                tensor[_height * _width + index] = pixel.Green / 255f;
-                tensor[2 * _height * _width + index] = pixel.Blue / 255f;
+                var resizedX = x - padLeft;
+                var resizedY = y - padTop;
+                if (resizedX < 0 || resizedX >= resizedWidth
+                    || resizedY < 0 || resizedY >= resizedHeight)
+                {
+                    tensor[index] = 114 / 255f;
+                    tensor[_height * _width + index] = 114 / 255f;
+                    tensor[2 * _height * _width + index] = 114 / 255f;
+                    continue;
+                }
+
+                var pixelIndex = (resizedY * resizedWidth + resizedX) * 3;
+                tensor[index] = resized[pixelIndex] / 255f;
+                tensor[_height * _width + index] = resized[pixelIndex + 1] / 255f;
+                tensor[2 * _height * _width + index] = resized[pixelIndex + 2] / 255f;
             }
         }
         return tensor;
+    }
+
+    internal static byte[] ResizeRgbInterLinearExact(SKBitmap source, int width, int height)
+    {
+        if (width < 1 || height < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Resize dimensions must be positive.");
+        }
+
+        const int coefficientScale = 1 << 8;
+        var scaleX = 1.0 / ((double)width / source.Width);
+        var scaleY = 1.0 / ((double)height / source.Height);
+        var sourcePixels = new SKColor[source.Width * source.Height];
+        for (var y = 0; y < source.Height; y++)
+        {
+            for (var x = 0; x < source.Width; x++)
+            {
+                sourcePixels[y * source.Width + x] = source.GetPixel(x, y);
+            }
+        }
+
+        var resized = new byte[width * height * 3];
+        for (var y = 0; y < height; y++)
+        {
+            var sourceY = scaleY * (y + 0.5) - 0.5;
+            var y0 = (int)Math.Floor(sourceY);
+            var beta1 = sourceY - y0;
+            if (y0 < 0)
+            {
+                y0 = 0;
+                beta1 = 0;
+            }
+            if (y0 >= source.Height - 1)
+            {
+                y0 = source.Height - 1;
+                beta1 = 0;
+            }
+            var y1 = Math.Min(y0 + 1, source.Height - 1);
+            var beta1Fixed = Math.Clamp(
+                (int)Math.Round(beta1 * coefficientScale, MidpointRounding.ToEven),
+                0,
+                coefficientScale);
+            var beta0Fixed = Math.Clamp(
+                (int)Math.Round((1 - beta1) * coefficientScale, MidpointRounding.ToEven),
+                0,
+                coefficientScale);
+
+            for (var x = 0; x < width; x++)
+            {
+                var sourceX = scaleX * (x + 0.5) - 0.5;
+                var x0 = (int)Math.Floor(sourceX);
+                var alpha1 = sourceX - x0;
+                if (x0 < 0)
+                {
+                    x0 = 0;
+                    alpha1 = 0;
+                }
+                if (x0 >= source.Width - 1)
+                {
+                    x0 = source.Width - 1;
+                    alpha1 = 0;
+                }
+                var x1 = Math.Min(x0 + 1, source.Width - 1);
+                var alpha1Fixed = Math.Clamp(
+                    (int)Math.Round(alpha1 * coefficientScale, MidpointRounding.ToEven),
+                    0,
+                    coefficientScale);
+                var alpha0Fixed = Math.Clamp(
+                    (int)Math.Round((1 - alpha1) * coefficientScale, MidpointRounding.ToEven),
+                    0,
+                    coefficientScale);
+
+                var topLeft = sourcePixels[y0 * source.Width + x0];
+                var topRight = sourcePixels[y0 * source.Width + x1];
+                var bottomLeft = sourcePixels[y1 * source.Width + x0];
+                var bottomRight = sourcePixels[y1 * source.Width + x1];
+                var destination = (y * width + x) * 3;
+                resized[destination] = Interpolate(
+                    topLeft.Red, topRight.Red, bottomLeft.Red, bottomRight.Red,
+                    alpha0Fixed, alpha1Fixed, beta0Fixed, beta1Fixed);
+                resized[destination + 1] = Interpolate(
+                    topLeft.Green, topRight.Green, bottomLeft.Green, bottomRight.Green,
+                    alpha0Fixed, alpha1Fixed, beta0Fixed, beta1Fixed);
+                resized[destination + 2] = Interpolate(
+                    topLeft.Blue, topRight.Blue, bottomLeft.Blue, bottomRight.Blue,
+                    alpha0Fixed, alpha1Fixed, beta0Fixed, beta1Fixed);
+            }
+        }
+        return resized;
+    }
+
+    private static byte Interpolate(
+        byte topLeft,
+        byte topRight,
+        byte bottomLeft,
+        byte bottomRight,
+        int alpha0,
+        int alpha1,
+        int beta0,
+        int beta1)
+    {
+        const long rounding = 1L << 15;
+        var value =
+            (long)topLeft * alpha0 * beta0
+            + (long)topRight * alpha1 * beta0
+            + (long)bottomLeft * alpha0 * beta1
+            + (long)bottomRight * alpha1 * beta1;
+        return (byte)((value + rounding) >> 16);
     }
 
     private IReadOnlyList<DetectionPrediction> Decode(
@@ -322,7 +432,7 @@ public sealed class Detector : IDisposable
             for (var classId = 0; classId < _classNames.Length; classId++)
             {
                 var confidence = values[(4 + classId) * candidateCount + index];
-                if (!float.IsFinite(confidence) || confidence < _confidenceThreshold || confidence > 1)
+                if (!AcceptConfidence(confidence, _confidenceThreshold))
                 {
                     continue;
                 }
@@ -341,20 +451,26 @@ public sealed class Detector : IDisposable
                     new BoundingBox(left, top, right - left, bottom - top)));
             }
         }
-        return ApplyNms(candidates);
+        return ApplyNms(candidates, _iouThreshold, _maxDetections);
     }
 
-    private IReadOnlyList<DetectionPrediction> ApplyNms(List<DetectionPrediction> candidates)
+    internal static bool AcceptConfidence(float confidence, float threshold) =>
+        float.IsFinite(confidence) && confidence >= threshold && confidence <= 1;
+
+    internal static IReadOnlyList<DetectionPrediction> ApplyNms(
+        List<DetectionPrediction> candidates,
+        float iouThreshold,
+        int maxDetections)
     {
         var remaining = candidates.OrderByDescending(item => item.Confidence).ToList();
         var selected = new List<DetectionPrediction>();
-        while (remaining.Count > 0 && selected.Count < _maxDetections)
+        while (remaining.Count > 0 && selected.Count < maxDetections)
         {
             var best = remaining[0];
             remaining.RemoveAt(0);
             selected.Add(best);
             remaining.RemoveAll(candidate =>
-                candidate.ClassId == best.ClassId && IoU(candidate.Box, best.Box) > _iouThreshold);
+                candidate.ClassId == best.ClassId && IoU(candidate.Box, best.Box) > iouThreshold);
         }
         return selected;
     }

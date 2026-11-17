@@ -59,12 +59,20 @@ detection = [
     "onnxruntime>=1.20,<2",
     "ultralytics>=8.3,<9",
 ]
+autotrain = [
+    "dvc>=3.60,<4",
+    "mlflow>=3.18,<4",
+    "onnx>=1.17,<2",
+    "onnxruntime>=1.20,<2",
+    "ultralytics>=8.3,<9",
+]
 
 [project.scripts]
 surveillance-ml = "surveillance_ml.cli:main"
 surveillance-ml-export-onnx = "surveillance_ml.deployment.cli:export_main"
 surveillance-ml-benchmark-onnx = "surveillance_ml.deployment.cli:benchmark_main"
 surveillance-ml-serve = "surveillance_ml.deployment.cli:serve_main"
+surveillance-ml-autotrain = "surveillance_ml.autotrain.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/surveillance_ml"]

@@ -69,15 +69,16 @@ def _predict_image(
     results = cast(
         list[Results],
         model.predict(
-        source=str(image_path),
-        imgsz=image_size,
-        conf=confidence_threshold,
-        iou=nms_iou_threshold,
-        max_det=max_detections,
-        device=device,
-        verbose=False,
-        save=False,
-        stream=False,
+            source=str(image_path),
+            imgsz=image_size,
+            conf=confidence_threshold,
+            iou=nms_iou_threshold,
+            max_det=max_detections,
+            device=device,
+            verbose=False,
+            save=False,
+            stream=False,
+            rect=False,
         ),
     )
     if len(results) != 1:
@@ -111,6 +112,7 @@ def evaluate_detection_checkpoint(
     nms_iou_threshold: float,
     max_detections: int,
     device: str,
+    collect_samples: bool = False,
 ) -> dict[str, Any]:
     """Evaluate one checkpoint on exactly one validated dataset partition."""
     if split not in {"train", "val", "test"}:
@@ -119,6 +121,7 @@ def evaluate_detection_checkpoint(
         raise FileNotFoundError(f"Detector checkpoint does not exist: {checkpoint_path}")
     model = YOLO(str(checkpoint_path))
     samples: list[EvaluationSample] = []
+    sample_details: list[dict[str, Any]] = []
     for record in dataset_report.records:
         if record.split != split:
             continue
@@ -133,14 +136,41 @@ def evaluate_detection_checkpoint(
             max_detections=max_detections,
             device=device,
         )
+        ground_truths = _read_ground_truths(record, image_width, image_height)
         relative = record.image_path.relative_to(dataset_report.root / "images" / split)
+        sample_id = safe_sample_id(f"{split}/{relative.as_posix()}")
         samples.append(
             EvaluationSample(
-                sample_id=safe_sample_id(f"{split}/{relative.as_posix()}"),
-                ground_truths=_read_ground_truths(record, image_width, image_height),
+                sample_id=sample_id,
+                ground_truths=ground_truths,
                 predictions=predictions,
             )
         )
+        if collect_samples:
+            sample_details.append(
+                {
+                    "sample_id": sample_id,
+                    "relative_path": relative.as_posix(),
+                    "source_id": record.source_id,
+                    "ground_truths": [
+                        {
+                            "class_id": item.class_id,
+                            "class_name": DETECTION_CLASS_NAMES[item.class_id],
+                            "box": [item.box.x1, item.box.y1, item.box.x2, item.box.y2],
+                        }
+                        for item in ground_truths
+                    ],
+                    "predictions": [
+                        {
+                            "class_id": item.class_id,
+                            "class_name": DETECTION_CLASS_NAMES[item.class_id],
+                            "confidence": item.confidence,
+                            "box": [item.box.x1, item.box.y1, item.box.x2, item.box.y2],
+                        }
+                        for item in predictions
+                    ],
+                }
+            )
     metrics = calculate_detection_metrics(
         samples,
         DETECTION_CLASS_NAMES,
@@ -153,6 +183,8 @@ def evaluate_detection_checkpoint(
     metrics["prediction_confidence_threshold"] = confidence_threshold
     metrics["operating_confidence_threshold"] = operating_confidence_threshold
     metrics["nms_iou_threshold"] = nms_iou_threshold
+    if collect_samples:
+        metrics["sample_details"] = sample_details
     return metrics
 
 

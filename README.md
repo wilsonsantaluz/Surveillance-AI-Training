@@ -8,7 +8,7 @@
 [![Status](https://img.shields.io/badge/Status-Phases%201--4%20Implemented-16a085)](#implementation-status)
 [![License](https://img.shields.io/github/license/wilsonsantaluz/Surveillance-AI-Training)](LICENSE)
 
-> **Current scope:** Phases 1–4 provide image classification, MLOps, ONNX serving, and a separate YOLO object-detection pipeline. Detection demos use synthetic geometric fixtures, not weapon imagery; they do not establish real-world performance or production readiness.
+> **Current scope:** Phases 1–4 provide image classification, MLOps, ONNX serving, and a separate YOLO object-detection pipeline. Phase 5 adds local AutoTrain orchestration with explicit review and qualification gates. Detection demos use synthetic geometric fixtures, not weapon imagery; they do not establish real-world performance or production readiness.
 
 ## Why this project?
 
@@ -79,6 +79,7 @@ flowchart TD
 | Isolated YOLO11 firearm/knife detection pipeline and DVC workflow | ✅ |
 | Detection metrics, ONNX contract, Python video inference, and .NET alert DTO | ✅ |
 | Docker image and Compose deployment configuration | ✅ |
+| Resumable YOLO AutoTrain, dataset audit, MLflow reports, and gated candidate packaging | ✅ |
 | Pytest, Ruff, Mypy and CI configuration | ✅ |
 | LangGraph and Langfuse | **Planned — not implemented** |
 
@@ -108,6 +109,23 @@ Open **http://127.0.0.1:5000**. DVC outputs, Optuna studies, MLflow databases, a
 ### Object detection (Phase 4)
 
 The separate YOLO pipeline has a synthetic CPU demonstration and a user-data configuration. Its DVC workflow is opt-in and does not change the default classifier workflow. Follow [Object detection](docs/detection.md) for commands, data requirements, licensing, measured demo results, and limitations.
+
+### AutoTrain (Phase 5)
+
+AutoTrain orchestrates the existing YOLO11 pipeline for an already-downloaded
+local dataset. It audits annotations, duplicates, source splits, and class
+distribution; pauses for human review; resumes cumulative training safely; and
+requires explicit validation thresholds before exporting a candidate. The default
+thresholds are unset, so the default configuration cannot export a candidate.
+AutoTrain never deploys automatically. See [AutoTrain](docs/autotrain.md) for
+dataset requirements, commands, artifacts, and limitations.
+
+No real weapon-dataset AutoTrain run has been performed; the configured local
+dataset is not present in this checkout.
+
+```powershell
+uv run surveillance-ml-autotrain run --dry-run --config configs/autotrain.yaml
+```
 
 ### Transfer learning with pretrained weights
 
@@ -196,7 +214,7 @@ The table distinguishes implemented phases from future work:
 | **2 — MLOps** | **Implemented:** DVC pipeline, Optuna tuning, compatibility-aware experiment comparison |
 | **3 — Model serving** | **Implemented:** ONNX export and parity checks, ONNX Runtime, FastAPI, benchmarks, Docker, .NET example |
 | **4 — Object detection** | **Implemented:** YOLO11 fine-tuning, validated YOLO data, mAP evaluation, separate ONNX inference, video benchmarking, and .NET temporal confirmation |
-| **5 — AI workflows** | Optional LangGraph experiment-review graph and Langfuse tracing |
+| **5 — AutoTrain** | **Implemented:** local dataset audit, annotation-review pause, resumable YOLO stages, MLflow reports, validation gates, and manual-only candidate packaging. Optional LangGraph/Langfuse workflows remain planned. |
 | **6 — Publication** | Broader validation and deployment documentation |
 
 The ONNX bundle supports independent inference clients, including C#/.NET applications. The existing [SurveillanceAI](https://github.com/wilsonsantaluz/SurveillanceAI) project is separate and is not modified or bundled here.

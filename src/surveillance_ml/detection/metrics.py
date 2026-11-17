@@ -213,6 +213,26 @@ def calculate_detection_metrics(
         fn = total - tp
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / total if total else 0.0
+        cumulative_true = 0
+        cumulative_false = 0
+        precision_curve: list[float] = []
+        recall_curve: list[float] = []
+        confidence_curve: list[float] = []
+        for true_positive, false_positive, prediction in zip(
+            true,
+            false,
+            predictions,
+            strict=True,
+        ):
+            cumulative_true += true_positive
+            cumulative_false += false_positive
+            confidence_curve.append(prediction.confidence)
+            precision_curve.append(
+                cumulative_true / (cumulative_true + cumulative_false)
+                if cumulative_true + cumulative_false
+                else 0.0
+            )
+            recall_curve.append(cumulative_true / total if total else 0.0)
         per_class[class_name] = {
             "ground_truth_objects": total,
             "precision": precision,
@@ -222,6 +242,11 @@ def calculate_detection_metrics(
             "true_positives": tp,
             "false_positives": fp,
             "false_negatives": fn,
+            "precision_recall_curve": {
+                "confidence_thresholds": confidence_curve,
+                "precision": precision_curve,
+                "recall": recall_curve,
+            },
         }
         all_ap50.append(aps[0])
         all_ap.append(sum(aps) / len(aps))

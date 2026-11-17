@@ -1,0 +1,74 @@
+experiment:
+  name: surveillance-weapons-v1
+  seed: 42
+  output_root: artifacts/autotrain
+
+dataset:
+  path: data/weapon-detection
+  format: yolo
+  version: weapons-v1
+  source: local
+  license: unknown
+  provenance: ""
+  license_review_required: true
+  license_review_status: unreviewed
+
+model:
+  architecture: yolo11n
+  pretrained: true
+  image_size: 640
+
+training:
+  device: auto
+  smoke_epochs: 1
+  pilot_epochs: 10
+  max_total_epochs: 80
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: AdamW
+  patience: 12
+  workers: 4
+  cpu_threads: 4
+  mixed_precision: true
+  max_runtime_minutes: 480
+
+audit:
+  verify_images: true
+  verify_annotations: true
+  detect_exact_duplicates: true
+  detect_perceptual_duplicates: true
+  verify_source_group_splits: true
+  generate_contact_sheets: true
+  contact_sheet_samples_per_category: 32
+  perceptual_hamming_threshold: 2
+  minimum_resolution: 256
+  small_box_area_fraction: 0.0001
+  large_box_area_fraction: 0.95
+  maximum_negative_fraction: 0.8
+  require_manual_annotation_review: true
+
+tracking:
+  mlflow_enabled: true
+  uri: sqlite:///artifacts/autotrain/mlflow.db
+  experiment_name: surveillance-weapons-autotrain
+  dvc_enabled: true
+
+quality_gates:
+  min_validation_map50: null
+  min_firearm_ap50: null
+  min_knife_ap50: null
+  min_validation_precision: null
+  min_validation_recall: null
+  max_false_positives_per_hour: null
+  require_source_split_integrity: true
+  require_manifest_validation: true
+  require_python_dotnet_parity: true
+  require_manual_deployment_approval: true
+
+export:
+  format: onnx
+  model_id: surveillance-detection
+  version: autotrain-candidate-v1
+  opset: 17
+  export_candidate: true
+  auto_deploy: false
