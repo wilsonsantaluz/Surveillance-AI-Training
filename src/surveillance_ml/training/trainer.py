@@ -10,12 +10,14 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from surveillance_ml.training.evaluate import evaluate_model, metric_values
+from surveillance_ml.training.metrics import ClassificationMetrics
 
 
 @dataclass(frozen=True)
 class TrainingResult:
     best_epoch: int
     best_validation_loss: float
+    best_validation_metrics: ClassificationMetrics
     elapsed_seconds: float
     history: list[dict[str, float]]
 
@@ -74,6 +76,7 @@ def train_model(
     loss_function = nn.CrossEntropyLoss()
     best_loss = float("inf")
     best_epoch = 0
+    best_validation: ClassificationMetrics | None = None
     epochs_without_improvement = 0
     history: list[dict[str, float]] = []
     checkpoint_path = output_dir / "best.pt"
@@ -87,7 +90,7 @@ def train_model(
             images = images.to(device)
             labels = labels.to(device)
             optimizer.zero_grad(set_to_none=True)
-            with torch.autocast(device_type="cuda", enabled=use_amp):
+            with torch.autocast(device_type=device.type, enabled=use_amp):
                 logits = model(images)
                 loss = loss_function(logits, labels)
             scaler.scale(loss).backward()
@@ -107,12 +110,10 @@ def train_model(
             "learning_rate": current_learning_rate,
         }
         history.append(values)
-        if epoch_callback is not None:
-            epoch_callback(epoch, values)
-
         if validation.loss < best_loss:
             best_loss = validation.loss
             best_epoch = epoch
+            best_validation = validation
             epochs_without_improvement = 0
             torch.save(
                 {
@@ -126,12 +127,19 @@ def train_model(
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= early_stopping_patience:
+                if epoch_callback is not None:
+                    epoch_callback(epoch, values)
                 break
+        if epoch_callback is not None:
+            epoch_callback(epoch, values)
 
     elapsed = time.perf_counter() - started_at
+    if best_validation is None:
+        raise RuntimeError("Training completed without a best validation checkpoint")
     return TrainingResult(
         best_epoch=best_epoch,
         best_validation_loss=best_loss,
+        best_validation_metrics=best_validation,
         elapsed_seconds=elapsed,
         history=history,
     )

@@ -5,10 +5,10 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-ResNet18-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-Experiment%20Tracking-0194E2)](https://mlflow.org/)
-[![Status](https://img.shields.io/badge/Status-Phase%201%20Implemented-16a085)](#implementation-status)
+[![Status](https://img.shields.io/badge/Status-Phases%201--2%20Implemented-16a085)](#implementation-status)
 [![License](https://img.shields.io/github/license/wilsonsantaluz/Surveillance-AI-Training)](LICENSE)
 
-> **Current scope:** Phase 1 is a working, configurable image-classification training pipeline. It is **not** an object detector or production surveillance system. The generated demo images are synthetic and cannot establish real-world accuracy.
+> **Current scope:** Phases 1–2 provide a working image-classification, experiment-tracking, dataset-versioning, and tuning foundation. It is **not** an object detector or production surveillance system. The generated demo images are synthetic and cannot establish real-world accuracy.
 
 ## Why this project?
 
@@ -16,60 +16,51 @@ This independent, open-source lab explores the full engineering lifecycle of a c
 
 ## How it works
 
-The diagram below reflects the **implemented Phase 1**, not the future roadmap.
+The diagram below reflects the implemented training and MLOps foundation. Later roadmap phases are not included.
 
 ```mermaid
 flowchart TD
-    A["Image folders<br/>or synthetic demo generator"] --> B["Validate images<br/>and class labels"]
-    B --> C["Deterministic source-group split<br/>train / validation / test"]
-    C --> D["Preprocessing<br/>resize + ImageNet normalization"]
-    D --> E["Train-only augmentation"]
-    E --> F["TorchVision ResNet18"]
-    F --> G{"Fine-tuning strategy"}
-    G --> H["Head only"]
-    G --> I["Partial: layer4 + head"]
-    G --> J["Full network"]
-    H --> K["PyTorch training loop<br/>CPU or CUDA"]
-    I --> K
-    J --> K
-    K --> L["Validation per epoch<br/>scheduler + early stopping"]
-    L --> M["Best checkpoint<br/>by validation loss"]
-    M --> N["Held-out test evaluation<br/>accuracy · precision · recall · F1"]
-    N --> O["Confusion matrix<br/>and JSON reports"]
-    K -.-> P[("MLflow / local SQLite")]
-    L -.-> P
-    M -.-> P
-    N -.-> P
-    O -.-> P
+    A["Image folders<br/>or synthetic demo generator"] --> B["DVC data + pipeline"]
+    B --> C["Validate image contents<br/>and class labels"]
+    C --> D["Deterministic source-group split"]
+    D --> E["Train-only preprocessing<br/>and augmentation"]
+    E --> F["Optuna search<br/>shared ResNet18 trainer"]
+    F --> G["Validation-only objective<br/>and pruning"]
+    G --> H[("Optuna / local SQLite")]
+    F --> I[("MLflow / local SQLite")]
+    G --> I
+    G --> J["Compatible trial comparison<br/>CSV · JSON · Markdown · charts"]
+    J --> K["Retrain selected config"]
+    K --> L["One held-out test evaluation"]
+    L --> M["DVC metrics + MLflow artifacts"]
 
     classDef input fill:#eaf4ff,stroke:#568fca,color:#173b63
     classDef train fill:#e7f8f3,stroke:#28a48b,color:#125447
     classDef metric fill:#fff4df,stroke:#c89536,color:#654813
     classDef store fill:#ecebff,stroke:#7a72c4,color:#38336e
-    class A,B,C,D input
-    class E,F,G,H,I,J,K,L,M train
-    class N,O metric
-    class P store
+    class A,B,C input
+    class D,E,F,G,K train
+    class J,L,M metric
+    class H,I store
 ```
 
-**Pipeline in one line:** `Data → Validate → Split → Augment → Fine-tune → Evaluate → Track`
+**Pipeline in one line:** `Version data → Validate → Tune on validation → Compare compatible trials → Finalize → Evaluate test once`
 
 ### What is implemented
 
-| Capability | Phase 1 |
+| Capability | Status |
 | --- | --- |
 | Python package and locked dependencies (`uv.lock`) | ✅ |
-| Image-folder dataset validation and class distribution checks | ✅ |
-| Locally generated synthetic demo scenes | ✅ |
-| Deterministic, source-group-aware train/validation/test splits | ✅ |
-| Train-only image augmentation | ✅ |
-| ResNet18 transfer learning: head / partial / full | ✅ |
-| CPU / CUDA selection and CUDA-only mixed precision | ✅ |
-| Learning-rate scheduler, early stopping, best checkpoint | ✅ |
-| Held-out test metrics and confusion matrix | ✅ |
+| Image-folder validation, class reports, source-aware splits | ✅ |
+| Seeded synthetic demo scenes | ✅ |
+| ResNet18 training, validation, checkpointing, and held-out evaluation | ✅ |
 | Local MLflow tracking with SQLite and artifacts | ✅ |
+| DVC local-cache dataset/pipeline versioning | ✅ |
+| Persistent Optuna tuning with validation-only objective/pruning | ✅ |
+| Compatibility-aware comparison reports and charts | ✅ |
+| Final retraining and one-time held-out test evaluation | ✅ |
 | Pytest, Ruff, Mypy and CI configuration | ✅ |
-| DVC, Optuna, YOLO, ONNX, FastAPI, LangGraph, Langfuse | **Planned — not implemented** |
+| YOLO, ONNX, FastAPI, LangGraph, Langfuse | **Planned — not implemented** |
 
 ## Quick start
 
@@ -79,17 +70,20 @@ flowchart TD
 # Install the project and development tools
 uv sync --extra dev
 
-# Generate locally labeled synthetic scenes (development only)
-uv run python scripts/generate_demo_dataset.py --output-dir data/demo --samples-per-class 24
+# Generate data, validate it, train with DVC, and evaluate the held-out test split
+uv run dvc repro
 
-# Run a completely offline demo with randomly initialized ResNet18
-uv run python scripts/train_classifier.py --config configs/classification.yaml --no-pretrained
+# Run/resume a two-trial offline Optuna study using the generated data
+uv run python scripts/optimize_classifier.py --config configs/optimization_demo.yaml --no-pretrained
+
+# Retrain the best validation-selected parameters and evaluate test once
+uv run python scripts/finalize_classifier.py --config configs/optimization_demo.yaml
 
 # Explore training metrics and artifacts in MLflow
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
 ```
 
-Open **http://127.0.0.1:5000**. The training pipeline saves its best checkpoint under `artifacts/classifier/best.pt` and writes evaluation artifacts under `artifacts/`. These local outputs are intentionally not tracked in Git.
+Open **http://127.0.0.1:5000**. DVC outputs, Optuna studies, MLflow databases, and model artifacts are local and intentionally not tracked in Git. See [DVC](docs/dvc.md), [optimization](docs/hyperparameter_optimization.md), and [comparison reports](docs/experiment_comparison.md) for reproduction and outputs.
 
 ### Transfer learning with pretrained weights
 
@@ -142,19 +136,21 @@ uv run mypy src
 uv lock --check
 ```
 
-The Phase 1 implementation was reported as passing 11 focused tests, Ruff, Mypy, and the lockfile check. Run these commands in your own environment to verify the current revision. The included CI workflow validates project quality without a full GPU training run.
+The included CI workflow validates code quality and focused tests without requiring a GPU or a full training run.
 
 ## Project layout
 
 ```text
-configs/            Training configuration
-docs/               Training documentation and model card
-scripts/            Synthetic data generation and training entry points
-src/surveillance_ml/  Dataset, model, training, metrics and tracking modules
-tests/              Automated tests
-.github/workflows/   CI configuration
-pyproject.toml       Package and tooling configuration
-uv.lock              Locked dependencies
+configs/              Training and optimization configuration
+docs/                 Training, MLOps, and model-card documentation
+scripts/              Dataset, training, evaluation, and reporting entry points
+src/surveillance_ml/  Dataset, model, training, optimization, and reporting modules
+tests/                Automated tests
+.dvc/                 Local DVC configuration and cache ignore rules
+.github/workflows/    CI configuration
+pyproject.toml         Package and tooling configuration
+uv.lock                Locked dependencies
+dvc.yaml / dvc.lock    Reproducible dataset and training pipeline
 ```
 
 ## Roadmap
@@ -164,7 +160,7 @@ The following phases are **planned**, not part of the current implementation:
 | Phase | Planned scope |
 | --- | --- |
 | **1 — Training foundation** | **Implemented:** ResNet18, dataset validation, splitting, evaluation, MLflow |
-| **2 — MLOps** | DVC data/pipeline versioning, Optuna tuning, experiment comparison |
+| **2 — MLOps** | **Implemented:** DVC pipeline, Optuna tuning, compatibility-aware experiment comparison |
 | **3 — Model serving** | ONNX export and parity checks, ONNX Runtime, FastAPI inference |
 | **4 — Object detection** | YOLO fine-tuning, bounding boxes, mAP evaluation |
 | **5 — AI workflows** | Optional LangGraph experiment-review graph and Langfuse tracing |

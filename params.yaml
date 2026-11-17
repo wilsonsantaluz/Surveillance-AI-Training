@@ -1,0 +1,18 @@
+dataset:
+  root: data/demo
+  samples_per_class: 24
+  image_size: 64
+  seed: 42
+  imbalance_ratio: 1.5
+
+training:
+  output_dir: artifacts/dvc/classifier
+  seed: 42
+  batch_size: 12
+  epochs: 2
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  optimizer: adamw
+
+model:
+  strategy: head
