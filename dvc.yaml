@@ -1,0 +1,67 @@
+stages:
+  generate_dataset:
+    cmd: uv run python scripts/generate_demo_dataset.py --output-dir ${dataset.root} --samples-per-class ${dataset.samples_per_class} --image-size ${dataset.image_size} --seed ${dataset.seed}
+    deps:
+      - scripts/generate_demo_dataset.py
+      - src/surveillance_ml/data/synthetic.py
+    params:
+      - dataset.root
+      - dataset.samples_per_class
+      - dataset.image_size
+      - dataset.seed
+    outs:
+      - ${dataset.root}
+
+  validate_dataset:
+    cmd: uv run python scripts/validate_dataset.py --dataset-root ${dataset.root} --imbalance-ratio ${dataset.imbalance_ratio} --output artifacts/dvc/dataset_validation.json
+    deps:
+      - ${dataset.root}
+      - scripts/validate_dataset.py
+      - src/surveillance_ml/data/dataset.py
+      - src/surveillance_ml/data/splitting.py
+      - src/surveillance_ml/core/reproducibility.py
+    params:
+      - dataset.root
+      - dataset.imbalance_ratio
+    outs:
+      - artifacts/dvc/dataset_validation.json
+
+  train_model:
+    cmd: uv run python scripts/train_classifier.py --config configs/classification.yaml --dataset-root ${dataset.root} --image-size ${dataset.image_size} --imbalance-ratio ${dataset.imbalance_ratio} --output-dir ${training.output_dir} --epochs ${training.epochs} --batch-size ${training.batch_size} --learning-rate ${training.learning_rate} --weight-decay ${training.weight_decay} --optimizer ${training.optimizer} --seed ${training.seed} --fine-tuning-strategy ${model.strategy} --no-pretrained --skip-test-evaluation
+    deps:
+      - ${dataset.root}
+      - artifacts/dvc/dataset_validation.json
+      - configs/classification.yaml
+      - scripts/train_classifier.py
+      - src/surveillance_ml
+    params:
+      - dataset.image_size
+      - dataset.imbalance_ratio
+      - training.output_dir
+      - training.seed
+      - training.batch_size
+      - training.epochs
+      - training.learning_rate
+      - training.weight_decay
+      - training.optimizer
+      - model.strategy
+    outs:
+      - ${training.output_dir}/best.pt
+      - ${training.output_dir}/history.json
+      - ${training.output_dir}/validation.json
+
+  evaluate_and_report_metrics:
+    cmd: uv run python scripts/evaluate_model.py --config configs/classification.yaml --dataset-root ${dataset.root} --image-size ${dataset.image_size} --checkpoint ${training.output_dir}/best.pt --output ${training.output_dir}/evaluation.json --seed ${training.seed}
+    deps:
+      - ${dataset.root}
+      - ${training.output_dir}/best.pt
+      - scripts/evaluate_model.py
+      - src/surveillance_ml
+      - configs/classification.yaml
+    params:
+      - dataset.image_size
+      - training.seed
+      - training.batch_size
+      - training.output_dir
+    metrics:
+      - ${training.output_dir}/evaluation.json

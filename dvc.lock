@@ -1,0 +1,154 @@
+schema: '2.0'
+stages:
+  generate_dataset:
+    cmd: uv run python scripts/generate_demo_dataset.py --output-dir data/demo
+      --samples-per-class 24 --image-size 64 --seed 42
+    deps:
+    - path: scripts/generate_demo_dataset.py
+      hash: md5
+      md5: e844a380aed33e68b79db020414da4d2
+      size: 137
+    - path: src/surveillance_ml/data/synthetic.py
+      hash: md5
+      md5: ed139246d975735c4a8cf2599c287d59
+      size: 3229
+    params:
+      params.yaml:
+        dataset.image_size: 64
+        dataset.root: data/demo
+        dataset.samples_per_class: 24
+        dataset.seed: 42
+    outs:
+    - path: data/demo
+      hash: md5
+      md5: 4d7cd571a31c42aff1fc5bfe998e5d46.dir
+      size: 21220
+      nfiles: 73
+  validate_dataset:
+    cmd: uv run python scripts/validate_dataset.py --dataset-root data/demo
+      --imbalance-ratio 1.5 --output artifacts/dvc/dataset_validation.json
+    deps:
+    - path: data/demo
+      hash: md5
+      md5: 4d7cd571a31c42aff1fc5bfe998e5d46.dir
+      size: 21220
+      nfiles: 73
+    - path: scripts/validate_dataset.py
+      hash: md5
+      md5: b6a1a1bef6c9fff62fd0f89ffc3e88ab
+      size: 1308
+    - path: src/surveillance_ml/core/reproducibility.py
+      hash: md5
+      md5: 9efdd1201fca9a0fa426df2ed7634393
+      size: 3910
+    - path: src/surveillance_ml/data/dataset.py
+      hash: md5
+      md5: e8aa8e0948de58e3ee1a971f46843988
+      size: 4040
+    - path: src/surveillance_ml/data/splitting.py
+      hash: md5
+      md5: 02ce165469649409116cf33b74e71da1
+      size: 3973
+    params:
+      params.yaml:
+        dataset.imbalance_ratio: 1.5
+        dataset.root: data/demo
+    outs:
+    - path: artifacts/dvc/dataset_validation.json
+      hash: md5
+      md5: d8b8f29e3621932fa07a5072a5492e4b
+      size: 460
+  train_model:
+    cmd: uv run python scripts/train_classifier.py --config
+      configs/classification.yaml --dataset-root data/demo --image-size 64
+      --imbalance-ratio 1.5 --output-dir artifacts/dvc/classifier --epochs 2
+      --batch-size 12 --learning-rate 0.001 --weight-decay 0.0001 --optimizer
+      adamw --seed 42 --fine-tuning-strategy head --no-pretrained
+      --skip-test-evaluation
+    deps:
+    - path: artifacts/dvc/dataset_validation.json
+      hash: md5
+      md5: d8b8f29e3621932fa07a5072a5492e4b
+      size: 460
+    - path: configs/classification.yaml
+      hash: md5
+      md5: 426f70c5486d0cfe1e6557b298caa72b
+      size: 635
+    - path: data/demo
+      hash: md5
+      md5: 4d7cd571a31c42aff1fc5bfe998e5d46.dir
+      size: 21220
+      nfiles: 73
+    - path: scripts/train_classifier.py
+      hash: md5
+      md5: a2be2ab97eb6868c462d82109b433980
+      size: 129
+    - path: src/surveillance_ml
+      hash: md5
+      md5: 997662d402fd73965945128ad7f2c83a.dir
+      size: 101219
+      nfiles: 30
+    params:
+      params.yaml:
+        dataset.image_size: 64
+        dataset.imbalance_ratio: 1.5
+        model.strategy: head
+        training.batch_size: 12
+        training.epochs: 2
+        training.learning_rate: 0.001
+        training.optimizer: adamw
+        training.output_dir: artifacts/dvc/classifier
+        training.seed: 42
+        training.weight_decay: 0.0001
+    outs:
+    - path: artifacts/dvc/classifier/best.pt
+      hash: md5
+      md5: 4df3662c91d9e72a1a34eafe41e97fd1
+      size: 44783051
+    - path: artifacts/dvc/classifier/history.json
+      hash: md5
+      md5: 79d172732ef51a82f194d53f9770e7a7
+      size: 622
+    - path: artifacts/dvc/classifier/validation.json
+      hash: md5
+      md5: 9375255aebf60b13a307050b92e1e2b3
+      size: 1402
+  evaluate_and_report_metrics:
+    cmd: uv run python scripts/evaluate_model.py --config
+      configs/classification.yaml --dataset-root data/demo --image-size 64
+      --checkpoint artifacts/dvc/classifier/best.pt --output
+      artifacts/dvc/classifier/evaluation.json --seed 42
+    deps:
+    - path: artifacts/dvc/classifier/best.pt
+      hash: md5
+      md5: 4df3662c91d9e72a1a34eafe41e97fd1
+      size: 44783051
+    - path: configs/classification.yaml
+      hash: md5
+      md5: 426f70c5486d0cfe1e6557b298caa72b
+      size: 635
+    - path: data/demo
+      hash: md5
+      md5: 4d7cd571a31c42aff1fc5bfe998e5d46.dir
+      size: 21220
+      nfiles: 73
+    - path: scripts/evaluate_model.py
+      hash: md5
+      md5: 87817905cdbacfc96213377191c752bd
+      size: 1384
+    - path: src/surveillance_ml
+      hash: md5
+      md5: 997662d402fd73965945128ad7f2c83a.dir
+      size: 101219
+      nfiles: 30
+    params:
+      params.yaml:
+        dataset.image_size: 64
+        training.batch_size: 12
+        training.output_dir: artifacts/dvc/classifier
+        training.seed: 42
+    outs:
+    - path: artifacts/dvc/classifier/evaluation.json
+      hash: md5
+      md5: cd61a0b26899ef92bdeb4b52a63b4b38
+      size: 900

@@ -1,0 +1,39 @@
+optimization:
+  study_name: surveillance-resnet18-demo
+  direction: maximize
+  metric: val_macro_f1
+  n_trials: 2
+  timeout_seconds: 600
+  seed: 42
+  storage: sqlite:///optuna-demo.db
+  load_if_exists: true
+  output_dir: artifacts/optimization/demo
+  base_config: configs/classification.yaml
+  epochs_per_trial: 1
+  pretrained: false
+  tracking_uri: sqlite:///mlflow.db
+  experiment_name: surveillance-optimization-demo
+  pruner:
+    startup_trials: 2
+    warmup_steps: 1
+    interval_steps: 1
+
+search_space:
+  learning_rate:
+    min: 0.0001
+    max: 0.003
+    log: true
+  weight_decay:
+    min: 0.000001
+    max: 0.001
+    log: true
+  batch_size:
+    choices: [4, 8]
+  optimizer:
+    choices: [adamw]
+  fine_tuning_strategy:
+    choices: [head, partial]
+  scheduler_factor:
+    choices: [0.3, 0.5]
+  scheduler_patience:
+    choices: [0, 1]

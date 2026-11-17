@@ -13,6 +13,9 @@ mlflow.db
 mlflow.db-shm
 mlflow.db-wal
 mlartifacts/
+optuna*.db
+optuna*.db-shm
+optuna*.db-wal
 *.pt
 *.pth
 *.onnx
