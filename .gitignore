@@ -19,4 +19,6 @@ optuna*.db-wal
 *.pt
 *.pth
 *.onnx
+**/bin/
+**/obj/
 .env

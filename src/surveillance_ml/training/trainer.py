@@ -55,6 +55,7 @@ def train_model(
     early_stopping_patience: int,
     mixed_precision: bool,
     epoch_callback: Callable[[int, dict[str, float]], None] | None = None,
+    checkpoint_metadata: dict[str, object] | None = None,
 ) -> TrainingResult:
     """Train, validate every epoch, and persist the lowest-validation-loss weights."""
     if epochs < 1 or early_stopping_patience < 1:
@@ -115,15 +116,15 @@ def train_model(
             best_epoch = epoch
             best_validation = validation
             epochs_without_improvement = 0
-            torch.save(
-                {
-                    "model_state_dict": model.state_dict(),
-                    "epoch": epoch,
-                    "validation_loss": validation.loss,
-                    "class_names": list(class_names),
-                },
-                checkpoint_path,
-            )
+            checkpoint: dict[str, object] = {
+                "model_state_dict": model.state_dict(),
+                "epoch": epoch,
+                "validation_loss": validation.loss,
+                "class_names": list(class_names),
+            }
+            if checkpoint_metadata:
+                checkpoint["metadata"] = checkpoint_metadata
+            torch.save(checkpoint, checkpoint_path)
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= early_stopping_patience:
