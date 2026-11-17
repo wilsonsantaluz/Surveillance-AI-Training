@@ -5,18 +5,18 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-ResNet18-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-Experiment%20Tracking-0194E2)](https://mlflow.org/)
-[![Status](https://img.shields.io/badge/Status-Phases%201--2%20Implemented-16a085)](#implementation-status)
+[![Status](https://img.shields.io/badge/Status-Phases%201--3%20Implemented-16a085)](#implementation-status)
 [![License](https://img.shields.io/github/license/wilsonsantaluz/Surveillance-AI-Training)](LICENSE)
 
-> **Current scope:** Phases 1–2 provide a working image-classification, experiment-tracking, dataset-versioning, and tuning foundation. It is **not** an object detector or production surveillance system. The generated demo images are synthetic and cannot establish real-world accuracy.
+> **Current scope:** Phases 1–3 provide an image-classification and MLOps foundation with ONNX export/runtime and a local inference API. This is **not** an object detector or production surveillance system. The generated demo images are synthetic and cannot establish real-world accuracy.
 
 ## Why this project?
 
-This independent, open-source lab explores the full engineering lifecycle of a computer-vision model: validated data, source-aware splits, transfer learning, measured evaluation, reproducible configuration, and local experiment tracking. Future phases are planned to explore MLOps, deployment, object detection, and optional LLM-assisted experiment reviews.
+This independent, open-source lab explores the engineering lifecycle of a computer-vision model: validated data, source-aware splits, transfer learning, measured evaluation, reproducible configuration, local experiment tracking, and CPU inference. Future phases are planned to explore object detection and optional LLM-assisted experiment reviews.
 
 ## How it works
 
-The diagram below reflects the implemented training and MLOps foundation. Later roadmap phases are not included.
+The diagram below reflects the implemented training, MLOps, and model-serving path. Later roadmap phases are not included.
 
 ```mermaid
 flowchart TD
@@ -33,18 +33,25 @@ flowchart TD
     J --> K["Retrain selected config"]
     K --> L["One held-out test evaluation"]
     L --> M["DVC metrics + MLflow artifacts"]
+    K --> N["ONNX export<br/>graph + parity validation"]
+    N --> O["ONNX Runtime<br/>CPU inference"]
+    O --> P["Authenticated FastAPI<br/>local service"]
+    O --> Q[".NET ONNX Runtime<br/>example client"]
+    O --> R["Measured latency report"]
 
     classDef input fill:#eaf4ff,stroke:#568fca,color:#173b63
     classDef train fill:#e7f8f3,stroke:#28a48b,color:#125447
     classDef metric fill:#fff4df,stroke:#c89536,color:#654813
     classDef store fill:#ecebff,stroke:#7a72c4,color:#38336e
+    classDef serve fill:#f4e9ff,stroke:#9b71c7,color:#4b3263
     class A,B,C input
     class D,E,F,G,K train
     class J,L,M metric
     class H,I store
+    class N,O,P,Q,R serve
 ```
 
-**Pipeline in one line:** `Version data → Validate → Tune on validation → Compare compatible trials → Finalize → Evaluate test once`
+**Pipeline in one line:** `Version data → Validate → Tune on validation → Compare compatible trials → Finalize → Evaluate test once → Export and serve`
 
 ### What is implemented
 
@@ -59,8 +66,13 @@ flowchart TD
 | Persistent Optuna tuning with validation-only objective/pruning | ✅ |
 | Compatibility-aware comparison reports and charts | ✅ |
 | Final retraining and one-time held-out test evaluation | ✅ |
+| ONNX export, graph validation, and PyTorch/runtime parity | ✅ |
+| Hash-verified ONNX Runtime CPU inference and benchmark report | ✅ |
+| Authenticated, upload-limited local FastAPI service | ✅ |
+| Standalone .NET ONNX Runtime interoperability example | ✅ |
+| Docker image and Compose deployment configuration | ✅ |
 | Pytest, Ruff, Mypy and CI configuration | ✅ |
-| YOLO, ONNX, FastAPI, LangGraph, Langfuse | **Planned — not implemented** |
+| YOLO, LangGraph, Langfuse | **Planned — not implemented** |
 
 ## Quick start
 
@@ -127,6 +139,13 @@ MLflow stores configuration, data-distribution information, per-epoch training a
 
 See [Training and evaluation](docs/training.md) and the [Model card](docs/model_card.md).
 
+## ONNX inference
+
+Export and verify an ONNX bundle, then run ONNX Runtime, the local API, benchmark, or
+standalone .NET client. The API is authenticated and bound to loopback by default.
+See [ONNX export and inference](docs/deployment.md) for commands, security limits,
+Docker Compose, and the .NET parity smoke check.
+
 ## Quality checks
 
 ```bash
@@ -142,10 +161,11 @@ The included CI workflow validates code quality and focused tests without requir
 
 ```text
 configs/              Training and optimization configuration
-docs/                 Training, MLOps, and model-card documentation
+docs/                 Training, MLOps, deployment, and model-card documentation
 scripts/              Dataset, training, evaluation, and reporting entry points
-src/surveillance_ml/  Dataset, model, training, optimization, and reporting modules
+src/surveillance_ml/  Dataset, training, optimization, deployment, and inference modules
 tests/                Automated tests
+dotnet/               Standalone .NET ONNX Runtime example
 .dvc/                 Local DVC configuration and cache ignore rules
 .github/workflows/    CI configuration
 pyproject.toml         Package and tooling configuration
@@ -155,18 +175,18 @@ dvc.yaml / dvc.lock    Reproducible dataset and training pipeline
 
 ## Roadmap
 
-The following phases are **planned**, not part of the current implementation:
+The table distinguishes implemented phases from future work:
 
 | Phase | Planned scope |
 | --- | --- |
 | **1 — Training foundation** | **Implemented:** ResNet18, dataset validation, splitting, evaluation, MLflow |
 | **2 — MLOps** | **Implemented:** DVC pipeline, Optuna tuning, compatibility-aware experiment comparison |
-| **3 — Model serving** | ONNX export and parity checks, ONNX Runtime, FastAPI inference |
+| **3 — Model serving** | **Implemented:** ONNX export and parity checks, ONNX Runtime, FastAPI, benchmarks, Docker, .NET example |
 | **4 — Object detection** | YOLO fine-tuning, bounding boxes, mAP evaluation |
 | **5 — AI workflows** | Optional LangGraph experiment-review graph and Langfuse tracing |
-| **6 — Publication** | Extended benchmarks, documentation, deployment examples, optional .NET interoperability |
+| **6 — Publication** | Extended benchmarks and deployment documentation |
 
-The eventual ONNX export is intended to enable independent inference clients, including C#/.NET applications. The existing [SurveillanceAI](https://github.com/wilsonsantaluz/SurveillanceAI) project is separate and is not modified or bundled here.
+The ONNX bundle supports independent inference clients, including C#/.NET applications. The existing [SurveillanceAI](https://github.com/wilsonsantaluz/SurveillanceAI) project is separate and is not modified or bundled here.
 
 ## Responsible use and limitations
 

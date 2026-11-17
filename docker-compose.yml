@@ -1,0 +1,21 @@
+services:
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      SURVEILLANCE_API_KEY: ${SURVEILLANCE_API_KEY:?Set SURVEILLANCE_API_KEY to a secret of at least 32 characters}
+      SURVEILLANCE_MODEL: /models/model.onnx
+      SURVEILLANCE_MANIFEST: /models/manifest.json
+    volumes:
+      - ./artifacts/onnx:/models:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

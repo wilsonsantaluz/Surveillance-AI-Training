@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 
 from surveillance_ml.core.config import AppConfig
 from surveillance_ml.core.device import seed_everything, select_device
+from surveillance_ml.core.image_preprocessing import IMAGENET_MEAN, IMAGENET_STD
 from surveillance_ml.core.reproducibility import (
     configuration_fingerprint,
     dataset_fingerprint,
@@ -55,10 +56,7 @@ def _distribution_summary(
     include_test: bool,
 ) -> dict[str, dict[str, object]]:
     names = ("train", "validation", "test") if include_test else ("train", "validation")
-    return {
-        name: class_distribution(getattr(splits, name), imbalance_ratio)
-        for name in names
-    }
+    return {name: class_distribution(getattr(splits, name), imbalance_ratio) for name in names}
 
 
 def _split_counts(splits: DatasetSplits, include_test: bool) -> dict[str, dict[str, int]]:
@@ -203,6 +201,25 @@ def _log_training(
         early_stopping_patience=config.training.early_stopping_patience,
         mixed_precision=config.training.mixed_precision,
         epoch_callback=log_epoch,
+        checkpoint_metadata={
+            "architecture": config.model.architecture,
+            "strategy": config.model.strategy,
+            "pretrained": config.model.pretrained,
+            "dataset_version": config.dataset.version,
+            "dataset_fingerprint": data_hash,
+            "image_size": config.dataset.image_size,
+            "preprocessing": {
+                "color_space": "RGB",
+                "layout": "NCHW",
+                "resize_mode": "fit",
+                "resample": "bilinear",
+                "mean": list(IMAGENET_MEAN),
+                "std": list(IMAGENET_STD),
+            },
+            "experiment_id": experiment_id,
+            "mlflow_run_id": active_run.info.run_id,
+            "git_commit_sha": commit_sha or "unavailable",
+        },
     )
     checkpoint_path = output_dir / "best.pt"
     checkpoint = load_best_checkpoint(model, checkpoint_path, device)
